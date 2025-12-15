@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import './SignIn.css';
 
 function SignIn({ onSignIn }) {
     const [username, setUsername] = useState('');
@@ -41,32 +40,65 @@ function SignIn({ onSignIn }) {
     };
 
     return (
-        <div className="signin-container">
-            <div className="signin-card">
-                <h1>Welcome</h1>
-                <p className="signin-description">
-                    Enter your username to sign in or create a new account
-                </p>
+        <div className="min-vh-100 min-vw-100 d-flex align-items-center justify-content-center bg-gradient"
+             style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <div className="container">
+                <div className="row justify-content-center">
+                    <div className="col-md-6 col-lg-5">
+                        <div className="card shadow-lg border-0 rounded-lg">
+                            <div className="card-body p-5">
+                                <div className="text-center mb-4">
+                                    <h1 className="fw-bold text-dark mb-2">Welcome</h1>
+                                    <p className="text-muted">
+                                        Enter your username to sign in or create a new account
+                                    </p>
+                                </div>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <input
-                            type="text"
-                            id="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Username"
-                            disabled={loading}
-                            autoFocus
-                        />
+                                <form onSubmit={handleSubmit}>
+                                    <div className="mb-3">
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-lg"
+                                            id="username"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder="Username"
+                                            disabled={loading}
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {error && (
+                                        <div className="alert alert-danger" role="alert">
+                                            {error}
+                                        </div>
+                                    )}
+
+                                    <div className="d-grid">
+                                        <button
+                                            type="submit"
+                                            className="btn btn-lg btn-primary"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                border: 'none'
+                                            }}
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    Signing in...
+                                                </>
+                                            ) : (
+                                                'Sign In'
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-
-                    {error && <div className="error-message">{error}</div>}
-
-                    <button type="submit" disabled={loading}>
-                        {loading ? 'Signing in...' : 'Sign In'}
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     );
