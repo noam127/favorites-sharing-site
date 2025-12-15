@@ -1,16 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const redis = require('redis');
+import express, { json } from 'express';
+import cors from 'cors';
+import { createClient as createRedisClient } from 'redis';
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(json());
 
-// Redis client setup
-const redisClient = redis.createClient({
+const redisClient = createRedisClient({
     socket: {
         host: process.env.REDIS_HOST || 'localhost',
         port: process.env.REDIS_PORT || 6379
@@ -19,11 +17,10 @@ const redisClient = redis.createClient({
 
 redisClient.on('error', (err) => console.error('Redis Client Error', err));
 redisClient.on('connect', () => console.log('Connected to Redis'));
-
-// Connect to Redis
 redisClient.connect();
 
-const signinImpl = async (req, res) => {
+// Sign-in/Sign-up endpoint
+app.post('/api/auth/signin', async (req, res) => {
     const { username } = req.body;
 
     if (!username || typeof username !== 'string' || username.trim().length === 0) {
@@ -31,13 +28,12 @@ const signinImpl = async (req, res) => {
     }
 
     const trimmedUsername = username.trim();
-
-    // Check if user exists in Redis
-    const userExists = await redisClient.exists(`user:${trimmedUsername}`);
+    const redisUserKey = `user:${trimmedUsername}`;
+    const userExists = await redisClient.exists(redisUserKey);
 
     if (userExists) {
-        // User exists, sign them in
-        const userData = await redisClient.hGetAll(`user:${trimmedUsername}`);
+        const userData = await redisClient.hGetAll(redisUserKey);
+
         return res.status(200).json({
             message: 'Sign in successful',
             user: {
@@ -46,38 +42,22 @@ const signinImpl = async (req, res) => {
             },
             isNewUser: false
         });
-    } else {
-        // User doesn't exist, create new account
-        const createdAt = new Date().toISOString();
-        await redisClient.hSet(`user:${trimmedUsername}`, {
+    }
+
+    const createdAt = new Date().toISOString();
+    await redisClient.hSet(redisUserKey, {
+        username: trimmedUsername,
+        createdAt: createdAt
+    });
+
+    return res.status(201).json({
+        message: 'Account created successfully',
+        user: {
             username: trimmedUsername,
             createdAt: createdAt
-        });
-
-        return res.status(201).json({
-            message: 'Account created successfully',
-            user: {
-                username: trimmedUsername,
-                createdAt: createdAt
-            },
-            isNewUser: true
-        });
-    }
-};
-
-// Sign-in/Sign-up endpoint
-app.post('/api/auth/signin', async (req, res) => {
-    try {
-        signinImpl(req, res);
-    } catch (error) {
-        console.error('Error in sign-in endpoint:', error);
-        return res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Health check endpoint
-app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
+        },
+        isNewUser: true
+    });
 });
 
 app.listen(PORT, () => {
