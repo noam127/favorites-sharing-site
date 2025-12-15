@@ -1,23 +1,32 @@
 import express, { json } from 'express';
 import cors from 'cors';
-import { createClient as createRedisClient } from 'redis';
+import { MongoClient } from 'mongodb';
 
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+const DB_NAME = 'favorites-sharing-site';
 
 const app = express();
 app.use(cors());
 app.use(json());
 
-const redisClient = createRedisClient({
-    socket: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379
-    }
-});
+const client = new MongoClient(MONGODB_URI);
 
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
-redisClient.on('connect', () => console.log('Connected to Redis'));
-redisClient.connect();
+let db;
+let usersCollection;
+async function connectToMongoDB() {
+    try {
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        db = client.db(DB_NAME);
+        usersCollection = db.collection('users');
+        await usersCollection.createIndex({ username: 1 }, { unique: true });
+    } catch (error) {
+        console.error('MongoDB connection error:', error);
+        process.exit(1);
+    }
+}
 
 // Sign-in/Sign-up endpoint
 app.post('/api/auth/signin', async (req, res) => {
@@ -28,27 +37,26 @@ app.post('/api/auth/signin', async (req, res) => {
     }
 
     const trimmedUsername = username.trim();
-    const redisUserKey = `user:${trimmedUsername}`;
-    const userExists = await redisClient.exists(redisUserKey);
+    const user = await usersCollection.findOne({ username: trimmedUsername });
 
-    if (userExists) {
-        const userData = await redisClient.hGetAll(redisUserKey);
-
+    if (user) {
         return res.status(200).json({
             message: 'Sign in successful',
             user: {
-                username: trimmedUsername,
-                createdAt: userData.createdAt
+                username: user.username,
+                createdAt: user.createdAt
             },
             isNewUser: false
         });
     }
 
     const createdAt = new Date().toISOString();
-    await redisClient.hSet(redisUserKey, {
+    const newUser = {
         username: trimmedUsername,
-        createdAt: createdAt
-    });
+        createdAt,
+    };
+
+    await usersCollection.insertOne(newUser);
 
     return res.status(201).json({
         message: 'Account created successfully',
@@ -60,6 +68,16 @@ app.post('/api/auth/signin', async (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Start server after successfully connecting to MongoDB
+connectToMongoDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+});
+
+// Close MongoDB client
+process.on('SIGINT', async () => {
+    console.log('\nShutting down gracefully...');
+    await client.close();
+    process.exit(0);
 });
