@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function SignIn({ onSignIn }) {
+function SignInPage({ onSignIn }) {
     const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -104,4 +104,4 @@ function SignIn({ onSignIn }) {
     );
 }
 
-export default SignIn;
+export default SignInPage;
