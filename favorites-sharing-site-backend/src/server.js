@@ -1,18 +1,14 @@
 import express, { json } from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
 import session from 'express-session';
 import { RedisStore } from 'connect-redis';
-import { createClient } from 'redis';
+import { createRedisClient } from './redis-connection.js';
+import { connectToMongoDB, getDbCollections, mongoClient } from './mongodb-connection.js';
 
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
-const DB_NAME = 'favorites-sharing-site';
 
 const app = express();
 
-// CORS configuration - must allow credentials for sessions
 app.use(cors({
     origin: 'http://localhost:5173', // Vite default dev server port
     credentials: true
@@ -20,11 +16,7 @@ app.use(cors({
 
 app.use(json());
 
-const redisClient = createClient({ url: REDIS_URI });
-redisClient.on('error', (err) => console.error('Redis connection error:', err));
-redisClient.on('connect', () => console.log('Connected to Redis'));
-redisClient.connect();
-
+const redisClient = createRedisClient();
 const redisStore = new RedisStore({
     client: redisClient,
     prefix: 'session:',
@@ -42,24 +34,14 @@ app.use(session({
     }
 }));
 
-const mongoClient = new MongoClient(MONGODB_URI);
-
-let db;
 let usersCollection;
 
-async function connectToMongoDB() {
-    try {
-        await mongoClient.connect();
-        console.log('Connected to MongoDB');
-
-        db = mongoClient.db(DB_NAME);
-        usersCollection = db.collection('users');
-        await usersCollection.createIndex({ username: 1 }, { unique: true });
-    } catch (error) {
-        console.error('MongoDB connection error:', error);
-        process.exit(1);
-    }
+async function initializeMongoDBCollections() {
+    const db = await connectToMongoDB();
+    usersCollection = (await getDbCollections(db)).users;
 }
+
+initializeMongoDBCollections();
 
 // Sign-in/Sign-up endpoint
 app.post('/api/auth/signin', async (req, res) => {
@@ -70,61 +52,58 @@ app.post('/api/auth/signin', async (req, res) => {
     }
 
     const trimmedUsername = username.trim();
-    const user = await usersCollection.findOne({ username: trimmedUsername });
+    const userInDb = await usersCollection.findOne({ username: trimmedUsername });
 
-    if (user) {
-        // Store username in session
-        req.session.username = user.username;
+    let statusCode;
+    let message;
+    let userInResponse;
+    let isNewUser;
 
-        return res.status(200).json({
-            message: 'Sign in successful',
-            user: {
-                username: user.username,
-                createdAt: user.createdAt
-            },
-            isNewUser: false
-        });
+    if (userInDb) {
+        statusCode = 200;
+        message = 'Sign in successful';
+        userInResponse = userInResponse = {
+            username: userInDb.username,
+            createdAt: userInDb.createdAt,
+        };
+
+        isNewUser = false;
+    } else {
+        statusCode = 201;
+        message = 'Account created successfully';
+        userInResponse = {
+            username: trimmedUsername,
+            createdAt: new Date().toISOString(),
+        };
+
+        await usersCollection.insertOne(userInResponse);
+
+        isNewUser = true;
     }
 
-    const createdAt = new Date().toISOString();
-    const newUser = {
-        username: trimmedUsername,
-        createdAt,
-    };
-
-    await usersCollection.insertOne(newUser);
-
-    // Store username in session
-    req.session.username = trimmedUsername;
-
-    return res.status(201).json({
-        message: 'Account created successfully',
-        user: {
-            username: trimmedUsername,
-            createdAt: createdAt
-        },
-        isNewUser: true
+    req.session.username = userInResponse.username;
+    return res.status(statusCode).json({
+        message,
+        user: userInResponse,
+        isNewUser,
     });
 });
 
-// Sign-out endpoint
 app.post('/api/auth/signout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
-            return res.status(500).json({ error: 'Failed to sign out' });
+            res.status(500).json({ error: 'Failed to sign out' });
+        } else {
+            res.status(200).json({ message: 'Sign out successful' });
         }
-        res.clearCookie('connect.sid'); // Clear the session cookie
-        return res.status(200).json({ message: 'Sign out successful' });
     });
 });
 
-// Check current session endpoint
 app.get('/api/auth/session', async (req, res) => {
     if (!req.session.username) {
         return res.status(401).json({ authenticated: false });
     }
 
-    // Retrieve user details from MongoDB
     const user = await usersCollection.findOne({ username: req.session.username });
 
     if (!user) {
@@ -142,16 +121,9 @@ app.get('/api/auth/session', async (req, res) => {
     });
 });
 
-// Start server after successfully connecting to databases
-async function startServer() {
-    await connectToMongoDB();
-
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
-}
-
-startServer();
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 // Close database clients
 process.on('SIGINT', async () => {
