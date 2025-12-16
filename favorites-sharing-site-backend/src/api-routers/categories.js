@@ -1,9 +1,5 @@
-import crypto from 'crypto';
 import express from 'express';
 import requireAuth from '../authMiddleware.js';
-
-// Token generator for public share links
-const generateShareToken = () => crypto.randomBytes(8).toString('hex');
 
 export const createAPICategoriesRouter = (categoriesCollection, favoritesCollection) => {
     const router = express.Router();
@@ -28,7 +24,6 @@ export const createAPICategoriesRouter = (categoriesCollection, favoritesCollect
                         _id: category._id,
                         name: category.name,
                         createdAt: category.createdAt,
-                        publicShareToken: category.publicShareToken,
                         favoriteCount
                     };
                 })
@@ -59,7 +54,6 @@ export const createAPICategoriesRouter = (categoriesCollection, favoritesCollect
             const newCategory = {
                 username,
                 name: trimmedName,
-                publicShareToken: generateShareToken(),
                 createdAt: new Date().toISOString()
             };
 
@@ -71,7 +65,6 @@ export const createAPICategoriesRouter = (categoriesCollection, favoritesCollect
                     _id: newCategory._id,
                     name: newCategory.name,
                     createdAt: newCategory.createdAt,
-                    publicShareToken: newCategory.publicShareToken,
                     favoriteCount: 0
                 }
             });
@@ -112,35 +105,6 @@ export const createAPICategoriesRouter = (categoriesCollection, favoritesCollect
             });
         } catch (error) {
             console.error('Error deleting category:', error);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
-
-    // PATCH /api/categories/:categoryName/regenerate-token - Regenerate public share token
-    router.patch('/:categoryName/regenerate-token', requireAuth, async (req, res) => {
-        try {
-            const { categoryName } = req.params;
-            const username = req.session.username;
-
-            const category = await categoriesCollection.findOne({ username, name: categoryName });
-
-            if (!category) {
-                return res.status(404).json({ error: 'Category not found' });
-            }
-
-            const newToken = generateShareToken();
-
-            await categoriesCollection.updateOne(
-                { _id: category._id },
-                { $set: { publicShareToken: newToken } }
-            );
-
-            res.status(200).json({
-                message: 'Share token regenerated successfully',
-                publicShareToken: newToken
-            });
-        } catch (error) {
-            console.error('Error regenerating token:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     });

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import CategoryList from '../components/CategoryList';
 import FavoritesList from '../components/FavoritesList';
+import ShareLinkDisplay from '../components/ShareLinkDisplay';
 
 function FavoritesPage({ user, onSignOut }) {
     const [categories, setCategories] = useState([]);
@@ -9,6 +10,7 @@ function FavoritesPage({ user, onSignOut }) {
     const [favorites, setFavorites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
 
     // Fetch categories on mount
     useEffect(() => {
@@ -113,21 +115,10 @@ function FavoritesPage({ user, onSignOut }) {
         }
     };
 
-    const handleRegenerateToken = async (categoryName) => {
-        const response = await axios.patch(`/api/categories/${encodeURIComponent(categoryName)}/regenerate-token`);
+    const handleRegenerateToken = async () => {
+        const response = await axios.patch('/api/auth/regenerate-token');
         const newToken = response.data.publicShareToken;
-
-        // Update token in categories list
-        setCategories(categories.map(cat =>
-            cat.name === categoryName
-                ? { ...cat, publicShareToken: newToken }
-                : cat
-        ));
-
-        // Update token in selected category
-        if (selectedCategory?.name === categoryName) {
-            setSelectedCategory({ ...selectedCategory, publicShareToken: newToken });
-        }
+        setPublicShareToken(newToken);
     };
 
     const navbar = (
@@ -182,6 +173,13 @@ function FavoritesPage({ user, onSignOut }) {
                     </div>
                 )}
 
+                <div className="mb-4">
+                    <ShareLinkDisplay
+                        token={publicShareToken}
+                        onRegenerateToken={handleRegenerateToken}
+                    />
+                </div>
+
                 <div className="row">
                     <div className="col-md-4 mb-4">
                         <CategoryList
@@ -200,7 +198,6 @@ function FavoritesPage({ user, onSignOut }) {
                             onAddFavorite={handleAddFavorite}
                             onUpdateFavorite={handleUpdateFavorite}
                             onDeleteFavorite={handleDeleteFavorite}
-                            onRegenerateToken={handleRegenerateToken}
                         />
                     </div>
                 </div>

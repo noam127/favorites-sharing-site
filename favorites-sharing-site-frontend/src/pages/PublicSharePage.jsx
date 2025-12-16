@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 
 function PublicSharePage({ token }) {
-    const [category, setCategory] = useState(null);
-    const [favorites, setFavorites] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -15,8 +14,7 @@ function PublicSharePage({ token }) {
         try {
             setLoading(true);
             const response = await axios.get(`/api/public/${token}`);
-            setCategory(response.data.category);
-            setFavorites(response.data.favorites);
+            setCategories(response.data.categories);
             setError('');
         } catch (err) {
             if (err.response?.status === 404) {
@@ -78,47 +76,62 @@ function PublicSharePage({ token }) {
         );
     }
 
+    const totalFavorites = categories.reduce((sum, cat) => sum + cat.favorites.length, 0);
+
     return (
         <div className="min-vh-100 min-vw-100" style={{ backgroundColor: '#f8f9fa' }}>
             {navbar}
 
             <main className="container py-5">
                 <div className="row justify-content-center">
-                    <div className="col-lg-8">
+                    <div className="col-lg-10">
                         <div className="card border-0 shadow-sm mb-4">
                             <div className="card-body p-4">
-                                <h2 className="card-title mb-3">
-                                    <i className="bi bi-folder2-open me-2" style={{
+                                <h2 className="card-title mb-2">
+                                    <i className="bi bi-collection-fill me-2" style={{
                                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                         WebkitBackgroundClip: 'text',
                                         WebkitTextFillColor: 'transparent'
                                     }}></i>
-                                    {category.name}
+                                    Shared Favorites Collection
                                 </h2>
                                 <p className="text-muted mb-0">
-                                    {favorites.length} public {favorites.length === 1 ? 'item' : 'items'}
+                                    {categories.length} {categories.length === 1 ? 'category' : 'categories'} • {totalFavorites} public {totalFavorites === 1 ? 'item' : 'items'}
                                 </p>
                             </div>
                         </div>
 
-                        {favorites.length === 0 ? (
+                        {totalFavorites === 0 ? (
                             <div className="card border-0 shadow-sm">
                                 <div className="card-body text-center p-5">
                                     <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
-                                    <p className="text-muted mt-3 mb-0">This category has no public items</p>
+                                    <p className="text-muted mt-3 mb-0">No public favorites to display</p>
                                 </div>
                             </div>
                         ) : (
                             <div>
-                                {favorites.map((favorite, index) => (
-                                    <div key={index} className="card border-0 shadow-sm mb-2">
-                                        <div className="card-body p-3">
-                                            <div className="d-flex align-items-center">
-                                                <i className="bi bi-star-fill text-warning me-3"></i>
-                                                <span>{favorite.title}</span>
+                                {categories.map((category, categoryIndex) => (
+                                    category.favorites.length > 0 && (
+                                        <div key={categoryIndex} className="card border-0 shadow-sm mb-3">
+                                            <div className="card-body p-4">
+                                                <h5 className="card-title mb-3">
+                                                    <i className="bi bi-folder2-open me-2 text-primary"></i>
+                                                    {category.name}
+                                                    <span className="badge bg-primary ms-2">
+                                                        {category.favorites.length}
+                                                    </span>
+                                                </h5>
+                                                <div>
+                                                    {category.favorites.map((favorite, favIndex) => (
+                                                        <div key={favIndex} className="d-flex align-items-center py-2 border-bottom">
+                                                            <i className="bi bi-star-fill text-warning me-3"></i>
+                                                            <span>{favorite.title}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )
                                 ))}
                             </div>
                         )}

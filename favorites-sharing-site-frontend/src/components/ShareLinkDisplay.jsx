@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function ShareLinkDisplay({ token, categoryName, onRegenerateToken }) {
+function ShareLinkDisplay({ token, onRegenerateToken }) {
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -23,7 +23,7 @@ function ShareLinkDisplay({ token, categoryName, onRegenerateToken }) {
 
         setLoading(true);
         try {
-            await onRegenerateToken(categoryName);
+            await onRegenerateToken();
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to regenerate token');
         } finally {
@@ -36,8 +36,9 @@ function ShareLinkDisplay({ token, categoryName, onRegenerateToken }) {
             <div className="card-body">
                 <h6 className="card-title mb-2">
                     <i className="bi bi-share me-2"></i>
-                    Public Share Link
+                    Share Your Favorites
                 </h6>
+                <p className="text-muted small mb-2">Share all your public favorites with this link</p>
                 <div className="input-group input-group-sm mb-2">
                     <input
                         type="text"

@@ -60,32 +60,43 @@ app.get('/api/public/:token', async (req, res) => {
     try {
         const { token } = req.params;
 
-        // Find category by public share token
-        const category = await categoriesCollection.findOne({ publicShareToken: token });
+        // Find user by public share token
+        const user = await usersCollection.findOne({ publicShareToken: token });
 
-        if (!category) {
+        if (!user) {
             return res.status(404).json({ error: 'Shared link not found or has been changed' });
         }
 
-        // Get only public (non-private) favorites
+        // Get all categories for this user
+        const categories = await categoriesCollection
+            .find({ username: user.username })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        // Get all non-private favorites for this user
         const publicFavorites = await favoritesCollection
             .find({
-                username: category.username,
-                categoryName: category.name,
+                username: user.username,
                 isPrivate: false
             })
             .sort({ createdAt: -1 })
             .toArray();
 
-        // Return category name and public favorites (no username for privacy)
+        // Group favorites by category
+        const categoriesWithFavorites = categories.map(category => ({
+            name: category.name,
+            createdAt: category.createdAt,
+            favorites: publicFavorites
+                .filter(fav => fav.categoryName === category.name)
+                .map(fav => ({
+                    title: fav.title,
+                    createdAt: fav.createdAt
+                }))
+        }));
+
+        // Return categories with their public favorites (no username for privacy)
         res.status(200).json({
-            category: {
-                name: category.name
-            },
-            favorites: publicFavorites.map(fav => ({
-                title: fav.title,
-                createdAt: fav.createdAt
-            }))
+            categories: categoriesWithFavorites
         });
     } catch (error) {
         console.error('Error fetching public favorites:', error);

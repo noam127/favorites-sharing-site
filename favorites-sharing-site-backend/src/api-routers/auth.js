@@ -1,4 +1,9 @@
 import express from 'express';
+import crypto from 'crypto';
+import requireAuth from '../authMiddleware.js';
+
+// Token generator for public share links
+const generateShareToken = () => crypto.randomBytes(8).toString('hex');
 
 export const createAPIAuthRouter = (usersCollection) => {
     const router = express.Router();
@@ -22,9 +27,21 @@ export const createAPIAuthRouter = (usersCollection) => {
         if (userInDb) {
             statusCode = 200;
             message = 'Sign in successful';
-            userInResponse = userInResponse = {
+
+            // Ensure existing users have a share token
+            if (!userInDb.publicShareToken) {
+                const newToken = generateShareToken();
+                await usersCollection.updateOne(
+                    { username: trimmedUsername },
+                    { $set: { publicShareToken: newToken } }
+                );
+                userInDb.publicShareToken = newToken;
+            }
+
+            userInResponse = {
                 username: userInDb.username,
                 createdAt: userInDb.createdAt,
+                publicShareToken: userInDb.publicShareToken
             };
 
             isNewUser = false;
@@ -34,6 +51,7 @@ export const createAPIAuthRouter = (usersCollection) => {
             userInResponse = {
                 username: trimmedUsername,
                 createdAt: new Date().toISOString(),
+                publicShareToken: generateShareToken()
             };
 
             await usersCollection.insertOne(userInResponse);
@@ -72,13 +90,45 @@ export const createAPIAuthRouter = (usersCollection) => {
             return res.status(401).json({ authenticated: false });
         }
 
+        // Ensure user has a share token
+        if (!user.publicShareToken) {
+            const newToken = generateShareToken();
+            await usersCollection.updateOne(
+                { username: req.session.username },
+                { $set: { publicShareToken: newToken } }
+            );
+            user.publicShareToken = newToken;
+        }
+
         return res.status(200).json({
             authenticated: true,
             user: {
                 username: user.username,
-                createdAt: user.createdAt
+                createdAt: user.createdAt,
+                publicShareToken: user.publicShareToken
             }
         });
+    });
+
+    // PATCH /api/auth/regenerate-token - Regenerate public share token
+    router.patch('/regenerate-token', requireAuth, async (req, res) => {
+        try {
+            const username = req.session.username;
+            const newToken = generateShareToken();
+
+            await usersCollection.updateOne(
+                { username },
+                { $set: { publicShareToken: newToken } }
+            );
+
+            res.status(200).json({
+                message: 'Share token regenerated successfully',
+                publicShareToken: newToken
+            });
+        } catch (error) {
+            console.error('Error regenerating token:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     });
 
     return router;

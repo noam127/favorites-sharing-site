@@ -21,10 +21,10 @@ export const connectToMongoDB = async () => {
 export const getDbCollections = async (db) => {
     const users = db.collection('users');
     await users.createIndex({ username: 1 }, { unique: true });
+    await users.createIndex({ publicShareToken: 1 }, { unique: true, sparse: true });
 
     const categories = db.collection('categories');
     await categories.createIndex({ username: 1, name: 1 }, { unique: true });
-    await categories.createIndex({ publicShareToken: 1 }, { unique: true });
     await categories.createIndex({ username: 1 });
 
     const favorites = db.collection('favorites');

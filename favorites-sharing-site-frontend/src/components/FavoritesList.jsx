@@ -1,8 +1,7 @@
 import AddFavoriteForm from './AddFavoriteForm';
 import FavoriteItem from './FavoriteItem';
-import ShareLinkDisplay from './ShareLinkDisplay';
 
-function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, onDeleteFavorite, onRegenerateToken }) {
+function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, onDeleteFavorite }) {
     if (!category) {
         return (
             <div className="card border-0 shadow-sm">
@@ -17,12 +16,6 @@ function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, o
     return (
         <div>
             <h5 className="mb-3">{category.name}</h5>
-
-            <ShareLinkDisplay
-                token={category.publicShareToken}
-                categoryName={category.name}
-                onRegenerateToken={onRegenerateToken}
-            />
 
             <AddFavoriteForm onAdd={onAddFavorite} />
 
