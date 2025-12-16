@@ -114,10 +114,7 @@ function FavoritesPage({ user, onSignOut }) {
     };
 
     const handleRegenerateToken = async (categoryName) => {
-        const response = await axios.patch(
-            `/api/categories/${encodeURIComponent(categoryName)}/regenerate-token`
-        );
-
+        const response = await axios.patch(`/api/categories/${encodeURIComponent(categoryName)}/regenerate-token`);
         const newToken = response.data.publicShareToken;
 
         // Update token in categories list
