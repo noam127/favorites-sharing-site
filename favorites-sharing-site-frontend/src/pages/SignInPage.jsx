@@ -22,6 +22,7 @@ function SignInPage({ onSignIn }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Important: include cookies for session
                 body: JSON.stringify({ username: username.trim() }),
             });
 
