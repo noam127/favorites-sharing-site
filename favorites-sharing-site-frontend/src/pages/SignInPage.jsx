@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from '../api/axios';
 
 function SignInPage({ onSignIn }) {
     const [username, setUsername] = useState('');
@@ -17,23 +18,16 @@ function SignInPage({ onSignIn }) {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/signin', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username: username.trim() }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                onSignIn(data.user, data.isNewUser);
-            } else {
-                setError(data.error || 'Sign in failed');
-            }
+            const response = await axios.post('/api/auth/signin', { username: username.trim() });
+            onSignIn(response.data.user, response.data.isNewUser);
         } catch (err) {
-            setError('Could not connect to server. Please make sure the backend is running.');
+            if (err.response) {
+                // Server responded with an error status
+                setError(err.response.data.error || 'Sign in failed');
+            } else {
+                // Network error or server not reachable
+                setError('Could not connect to server. Please make sure the backend is running.');
+            }
         } finally {
             setLoading(false);
         }
