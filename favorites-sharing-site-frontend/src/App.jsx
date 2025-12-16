@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import SignInPage from './pages/SignInPage';
 import FavoritesPage from './pages/FavoritesPage';
+import PublicSharePage from './pages/PublicSharePage';
 import axios from './api/axios';
 
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // Check if this is a public share page
+    if (window.location.pathname.startsWith('/public/')) {
+        const token = window.location.pathname.split('/')[2];
+        return <PublicSharePage token={token} />;
+    }
 
     // Check for existing session on mount
     useEffect(() => {
