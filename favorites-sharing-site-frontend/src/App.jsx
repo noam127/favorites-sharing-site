@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import SignInPage from './pages/SignInPage';
 import FavoritesPage from './pages/FavoritesPage';
+import axios from './api/axios';
 
 function App() {
     const [user, setUser] = useState(null);
@@ -10,17 +11,17 @@ function App() {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/auth/session', {
-                    credentials: 'include' // Important: include cookies
-                });
+                const response = await axios.get('/api/auth/session');
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.authenticated) {
-                        setUser(data.user);
-                    }
+                if (response.data.authenticated) {
+                    setUser(response.data.user);
                 }
             } catch (error) {
+                // 'Unauthorized' is expected behaviour
+                if (error.status == 401) {
+                    return;
+                }
+
                 console.error('Failed to check session:', error);
             } finally {
                 setLoading(false);
@@ -41,16 +42,12 @@ function App() {
 
     const handleSignOut = async () => {
         try {
-            await fetch('http://localhost:3000/api/auth/signout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-            setUser(null);
+            await axios.post('/api/auth/signout');
         } catch (error) {
             console.error('Failed to sign out:', error);
-            // Still sign out locally even if backend fails
-            setUser(null);
         }
+
+        setUser(null);
     };
 
     if (loading) {
