@@ -6,19 +6,22 @@ import ShareLinkDisplay from '../components/ShareLinkDisplay';
 import SuggestionsModal from '../components/SuggestionsModal';
 import useAsync from '../hooks/useAsync';
 import useSuggestions from '../hooks/useSuggestions';
+import useSelectedCategory from '../hooks/useSelectedCategory';
+import useCategories from '../hooks/useCategories';
+import useFavorites from '../hooks/useFavorites';
 
 function FavoritesPage({ user, onSignOut }) {
-    const [categories, setCategories] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [favorites, setFavorites] = useState([]);
+    const categories = useCategories();
+    const [selectedCategory] = useSelectedCategory();
+    const favorites = useFavorites();
     const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
-    const [_suggestions, setSuggestions] = useSuggestions();
+    const suggestions = useSuggestions();
 
     const fetchCategories = useAsync(async () => {
         try {
             const response = await axios.get('/api/categories');
-            setCategories(response.data.categories);
+            categories.setAll(response.data.categories);
         } catch (err) {
             throw err.response?.data?.error || 'Failed to load categories';
         }
@@ -27,7 +30,7 @@ function FavoritesPage({ user, onSignOut }) {
     const fetchFavorites = useAsync(async (categoryName) => {
         try {
             const response = await axios.get(`/api/categories/${encodeURIComponent(categoryName)}/favorites`);
-            setFavorites(response.data.favorites);
+            favorites.setAll(response.data.favorites);
         } catch (err) {
             throw err.response?.data?.error || 'Failed to load favorites';
         }
@@ -46,76 +49,9 @@ function FavoritesPage({ user, onSignOut }) {
         if (selectedCategory) {
             fetchFavorites.run(selectedCategory.name);
         } else {
-            setFavorites([]);
+            favorites.setAll([]);
         }
     }, [selectedCategory]);
-
-    const handleAddCategory = async (name) => {
-        const response = await axios.post('/api/categories', { name });
-        const newCategory = response.data.category;
-        setCategories([newCategory, ...categories]);
-        setSelectedCategory(newCategory);
-    };
-
-    const handleDeleteCategory = async (categoryName) => {
-        try {
-            await axios.delete(`/api/categories/${encodeURIComponent(categoryName)}`);
-            setCategories(categories.filter(cat => cat.name !== categoryName));
-
-            if (selectedCategory?.name === categoryName) {
-                setSelectedCategory(null);
-                setFavorites([]);
-            }
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to delete category');
-        }
-    };
-
-    const handleAddFavorite = async (title, isPrivate) => {
-        if (!selectedCategory) return;
-
-        const response = await axios.post(
-            `/api/categories/${encodeURIComponent(selectedCategory.name)}/favorites`,
-            { title, isPrivate }
-        );
-
-        setFavorites([response.data.favorite, ...favorites]);
-
-        // Update favorite count in categories list
-        setCategories(categories.map(cat =>
-            cat.name === selectedCategory.name
-                ? { ...cat, favoriteCount: cat.favoriteCount + 1 }
-                : cat
-        ));
-    };
-
-    const handleUpdateFavorite = async (favoriteId, updates) => {
-        await axios.patch(`/api/favorites/${favoriteId}`, updates);
-
-        setFavorites(favorites.map(fav =>
-            fav._id === favoriteId
-                ? { ...fav, ...updates }
-                : fav
-        ));
-    };
-
-    const handleDeleteFavorite = async (favoriteId) => {
-        try {
-            await axios.delete(`/api/favorites/${favoriteId}`);
-            setFavorites(favorites.filter(fav => fav._id !== favoriteId));
-
-            // Update favorite count in categories list
-            if (selectedCategory) {
-                setCategories(categories.map(cat =>
-                    cat.name === selectedCategory.name
-                        ? { ...cat, favoriteCount: Math.max(0, cat.favoriteCount - 1) }
-                        : cat
-                ));
-            }
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to delete favorite');
-        }
-    };
 
     const handleRegenerateToken = async () => {
         const response = await axios.patch('/api/auth/regenerate-token');
@@ -123,30 +59,9 @@ function FavoritesPage({ user, onSignOut }) {
         setPublicShareToken(newToken);
     };
 
-    const handleGetSuggestions = useAsync(async () => {
-        if (!selectedCategory) return;
-
+    const handleGetSuggestions = () => {
         setShowSuggestionsModal(true);
-        setSuggestions([]);
-
-        try {
-            const response = await axios.post(`/api/categories/${encodeURIComponent(selectedCategory.name)}/suggestions`);
-            setSuggestions(response.data.suggestions);
-        } catch (err) {
-            throw err.response?.data?.error || 'Failed to generate suggestions';
-        }
-    });
-
-    const handleAddSuggestion = async (title) => {
-        try {
-            await handleAddFavorite(title, false);
-            // Remove from suggestions list to prevent duplicates
-            setSuggestions(prev => prev.filter(s => s.title !== title));
-            return true;
-        } catch (err) {
-            console.error('Failed to add suggestion:', err);
-            return false;
-        }
+        suggestions.fetch();
     };
 
     const navbar = (
@@ -210,24 +125,11 @@ function FavoritesPage({ user, onSignOut }) {
 
                 <div className="row">
                     <div className="col-md-4 mb-4">
-                        <CategoryList
-                            categories={categories}
-                            selectedCategory={selectedCategory}
-                            onSelectCategory={setSelectedCategory}
-                            onAddCategory={handleAddCategory}
-                            onDeleteCategory={handleDeleteCategory}
-                            onGetSuggestions={handleGetSuggestions.run}
-                        />
+                        <CategoryList onGetSuggestions={handleGetSuggestions} />
                     </div>
 
                     <div className="col-md-8">
-                        <FavoritesList
-                            category={selectedCategory}
-                            favorites={favorites}
-                            onAddFavorite={handleAddFavorite}
-                            onUpdateFavorite={handleUpdateFavorite}
-                            onDeleteFavorite={handleDeleteFavorite}
-                        />
+                        <FavoritesList />
                     </div>
                 </div>
             </main>
@@ -235,10 +137,6 @@ function FavoritesPage({ user, onSignOut }) {
             <SuggestionsModal
                 show={showSuggestionsModal}
                 onClose={() => setShowSuggestionsModal(false)}
-                categoryName={selectedCategory?.name}
-                loading={handleGetSuggestions.isRunning}
-                error={handleGetSuggestions.error}
-                onAddSuggestion={handleAddSuggestion}
             />
         </div>
     );

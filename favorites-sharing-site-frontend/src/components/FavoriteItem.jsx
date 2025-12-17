@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import useAsync from '../hooks/useAsync';
+import useFavorites from '../hooks/useFavorites';
 
-function FavoriteItem({ favorite, onUpdate, onDelete }) {
+function FavoriteItem({ favorite }) {
+    const favorites = useFavorites();
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(favorite.title);
     
@@ -15,27 +17,19 @@ function FavoriteItem({ favorite, onUpdate, onDelete }) {
             return;
         }
 
-        try {
-            await onUpdate(favorite._id, { title: editTitle.trim() });
-            setIsEditing(false);
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to update favorite');
-        }
+        await favorites.update(favorite._id, { title: editTitle.trim() });
+        setIsEditing(false);
     });
     
     const handleTogglePrivacy = useAsync(async () => {
-        try {
-            await onUpdate(favorite._id, { isPrivate: !favorite.isPrivate });
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to update privacy');
-        }
+        await favorites.update(favorite._id, { isPrivate: !favorite.isPrivate });
     });
 
     const loading = handleSave.isRunning || handleTogglePrivacy.isRunning;
 
     const handleDelete = () => {
         if (window.confirm(`Delete "${favorite.title}"?`)) {
-            onDelete(favorite._id);
+            favorites.delete(favorite._id);
         }
     };
 

@@ -1,7 +1,12 @@
+import useFavorites from '../hooks/useFavorites';
+import useSelectedCategory from '../hooks/useSelectedCategory';
 import AddFavoriteForm from './AddFavoriteForm';
 import FavoriteItem from './FavoriteItem';
 
-function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, onDeleteFavorite }) {
+function FavoritesList() {
+    const [category] = useSelectedCategory();
+    const favorites = useFavorites();
+
     if (!category) {
         return (
             <div className="card border-0 shadow-sm">
@@ -17,9 +22,9 @@ function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, o
         <div>
             <h5 className="mb-3">{category.name}</h5>
 
-            <AddFavoriteForm onAdd={onAddFavorite} />
+            <AddFavoriteForm />
 
-            {favorites.length === 0 && (
+            {favorites.getAll().length === 0 && (
                 <div className="card border-0 shadow-sm">
                     <div className="card-body text-center p-4">
                         <i className="bi bi-star text-muted" style={{ fontSize: '2rem' }}></i>
@@ -30,13 +35,8 @@ function FavoritesList({ category, favorites, onAddFavorite, onUpdateFavorite, o
             )}
 
             <div>
-                {favorites.map((favorite) => (
-                    <FavoriteItem
-                        key={favorite._id}
-                        favorite={favorite}
-                        onUpdate={onUpdateFavorite}
-                        onDelete={onDeleteFavorite}
-                    />
+                {favorites.getAll().map((favorite) => (
+                    <FavoriteItem key={favorite._id} favorite={favorite} />
                 ))}
             </div>
         </div>

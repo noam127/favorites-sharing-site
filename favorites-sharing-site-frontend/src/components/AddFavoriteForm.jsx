@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import useAsync from '../hooks/useAsync';
+import useFavorites from '../hooks/useFavorites';
 
-function AddFavoriteForm({ onAdd }) {
+function AddFavoriteForm() {
     const [title, setTitle] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
+    const favorites = useFavorites();
 
     const handleSubmit = useAsync(async (event) => {
         event.preventDefault();
@@ -17,7 +19,7 @@ function AddFavoriteForm({ onAdd }) {
         }
 
         try {
-            await onAdd(title.trim(), isPrivate);
+            await favorites.add(title.trim(), isPrivate);
             setTitle('');
             setIsPrivate(false);
         } catch (err) {
