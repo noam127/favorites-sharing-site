@@ -1,14 +1,20 @@
 import { useState } from 'react';
+import useSuggestions from '../hooks/useSuggestions';
+import useSelectedCategory from '../hooks/useSelectedCategory';
 
-function SuggestionsModal({ show, onClose, suggestions, categoryName, loading, error, onAddSuggestion }) {
+function SuggestionsModal({ show, onClose }) {
+    const [selectedCategory] = useSelectedCategory();
+    const suggestions = useSuggestions();
     const [addedSuggestions, setAddedSuggestions] = useState(new Set());
     const [addingTitle, setAddingTitle] = useState(null);
+    
+    const categoryName = selectedCategory?.name;
 
     if (!show) return null;
 
     const handleAddClick = async (suggestion) => {
         setAddingTitle(suggestion.title);
-        const success = await onAddSuggestion(suggestion.title);
+        const success = await suggestions.addToFavorites(suggestion.title);
 
         if (success) {
             setAddedSuggestions(new Set([...addedSuggestions, suggestion.title]));
@@ -57,7 +63,7 @@ function SuggestionsModal({ show, onClose, suggestions, categoryName, loading, e
                         {/* Body */}
                         <div className="modal-body">
                             {/* Loading State */}
-                            {loading && (
+                            {suggestions.loading && (
                                 <div className="text-center py-5">
                                     <div className="spinner-border text-primary mb-3" role="status">
                                         <span className="visually-hidden">Loading...</span>
@@ -67,17 +73,17 @@ function SuggestionsModal({ show, onClose, suggestions, categoryName, loading, e
                             )}
 
                             {/* Error State */}
-                            {error && !loading && (
+                            {suggestions.fetchError && !suggestions.loading && (
                                 <div className="alert alert-danger" role="alert">
                                     <i className="bi bi-exclamation-triangle me-2"></i>
-                                    {error}
+                                    {suggestions.fetchError}
                                 </div>
                             )}
 
                             {/* Suggestions List */}
-                            {!loading && !error && suggestions.length > 0 && (
+                            {!suggestions.loading && !suggestions.fetchError && suggestions.getAll().length > 0 && (
                                 <div className="d-flex flex-column gap-3">
-                                    {suggestions.map((suggestion, index) => {
+                                    {suggestions.getAll().map((suggestion, index) => {
                                         const isAdded = addedSuggestions.has(suggestion.title);
                                         const isAdding = addingTitle === suggestion.title;
 
@@ -131,7 +137,7 @@ function SuggestionsModal({ show, onClose, suggestions, categoryName, loading, e
                             )}
 
                             {/* Empty State */}
-                            {!loading && !error && suggestions.length === 0 && (
+                            {!suggestions.loading && !suggestions.fetchError && suggestions.getAll().length === 0 && (
                                 <div className="text-center py-4">
                                     <i
                                         className="bi bi-inbox text-muted"

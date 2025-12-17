@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import CategoryCard from './CategoryCard';
 import AddCategoryForm from './AddCategoryForm';
+import useSelectedCategory from '../hooks/useSelectedCategory';
+import useCategories from '../hooks/useCategories';
+import useSuggestions from '../hooks/useSuggestions';
 
-function CategoryList({ categories, selectedCategory, onSelectCategory, onAddCategory, onDeleteCategory, onGetSuggestions }) {
+function CategoryList({ onGetSuggestions }) {
+    const categories = useCategories();
+    const [selectedCategory, setSelectedCategory] = useSelectedCategory();
     const [showAddForm, setShowAddForm] = useState(false);
 
     return (
@@ -32,12 +37,12 @@ function CategoryList({ categories, selectedCategory, onSelectCategory, onAddCat
 
             {showAddForm && (
                 <AddCategoryForm
-                    onAdd={onAddCategory}
+                    onAdd={categories.add}
                     onCancel={() => setShowAddForm(false)}
                 />
             )}
 
-            {categories.length === 0 && !showAddForm && (
+            {categories.getAll().length === 0 && !showAddForm && (
                 <div className="card border-0 shadow-sm">
                     <div className="card-body text-center p-4">
                         <i className="bi bi-folder-plus text-muted" style={{ fontSize: '2rem' }}></i>
@@ -47,13 +52,13 @@ function CategoryList({ categories, selectedCategory, onSelectCategory, onAddCat
                 </div>
             )}
 
-            {categories.map((category) => (
+            {categories.getAll().map((category) => (
                 <CategoryCard
                     key={category._id}
                     category={category}
                     isSelected={selectedCategory?.name === category.name}
-                    onSelect={() => onSelectCategory(category)}
-                    onDelete={onDeleteCategory}
+                    onSelect={() => setSelectedCategory(category)}
+                    onDelete={categories.delete}
                 />
             ))}
         </div>

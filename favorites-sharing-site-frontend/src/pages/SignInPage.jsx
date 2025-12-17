@@ -1,37 +1,28 @@
 import { useState } from 'react';
 import axios from '../api/axios';
+import useAsync from '../hooks/useAsync';
 
 function SignInPage({ onSignIn }) {
     const [username, setUsername] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useAsync(async (e) => {
         e.preventDefault();
 
         if (!username.trim()) {
-            setError('Please enter a username');
-            return;
+            throw 'Please enter a username';
         }
-
-        setError('');
-        setLoading(true);
 
         try {
             const response = await axios.post('/api/auth/signin', { username: username.trim() });
             onSignIn(response.data.user, response.data.isNewUser);
         } catch (err) {
             if (err.response) {
-                // Server responded with an error status
-                setError(err.response.data.error || 'Sign in failed');
+                throw err.response.data.error || 'Sign in failed';
             } else {
-                // Network error or server not reachable
-                setError('Could not connect to server. Please make sure the backend is running.');
+                throw 'Could not connect to server. Please make sure the backend is running.';
             }
-        } finally {
-            setLoading(false);
         }
-    };
+    });
 
     return (
         <div className="min-vh-100 min-vw-100 d-flex align-items-center justify-content-center bg-gradient"
@@ -48,7 +39,7 @@ function SignInPage({ onSignIn }) {
                                     </p>
                                 </div>
 
-                                <form onSubmit={handleSubmit}>
+                                <form onSubmit={handleSubmit.run}>
                                     <div className="mb-3">
                                         <input
                                             type="text"
@@ -57,14 +48,14 @@ function SignInPage({ onSignIn }) {
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
                                             placeholder="Username"
-                                            disabled={loading}
+                                            disabled={handleSubmit.isRunning}
                                             autoFocus
                                         />
                                     </div>
 
-                                    {error && (
+                                    {handleSubmit.error && (
                                         <div className="alert alert-danger" role="alert">
-                                            {error}
+                                            {handleSubmit.error}
                                         </div>
                                     )}
 
@@ -76,9 +67,9 @@ function SignInPage({ onSignIn }) {
                                                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                                 border: 'none'
                                             }}
-                                            disabled={loading}
+                                            disabled={handleSubmit.isRunning}
                                         >
-                                            {loading ? (
+                                            {handleSubmit.isRunning ? (
                                                 <>
                                                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                                                     Signing in...

@@ -1,111 +1,100 @@
 import express from 'express';
-import requireAuth from '../authMiddleware.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 export const createAPICategoriesRouter = (categoriesCollection, favoritesCollection) => {
     const router = express.Router();
 
     // GET /api/categories - List user's categories
     router.get('/', requireAuth, async (req, res) => {
-        try {
-            const username = req.session.username;
-            const categories = await categoriesCollection
-                .find({ username })
-                .sort({ createdAt: -1 })
-                .toArray();
+        const username = req.session.username;
+        const categories = await categoriesCollection
+            .find({ username })
+            .sort({ createdAt: -1 })
+            .toArray();
 
-            let categoriesWithCounts = [];
-            for (const category of categories) {
-                const favoriteCount = await favoritesCollection.countDocuments({
-                    username,
-                    categoryName: category.name
-                });
+        let categoriesWithCounts = [];
+        for (const category of categories) {
+            const favoriteCount = await favoritesCollection.countDocuments({
+                username,
+                categoryName: category.name
+            });
 
-                categoriesWithCounts.push({
-                    _id: category._id,
-                    name: category.name,
-                    createdAt: category.createdAt,
-                    favoriteCount
-                });
-            }
-
-            res.status(200).json({ categories: categoriesWithCounts });
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            categoriesWithCounts.push({
+                _id: category._id,
+                name: category.name,
+                createdAt: category.createdAt,
+                favoriteCount
+            });
         }
+
+        res.status(200).json({ categories: categoriesWithCounts });
     });
 
     // POST /api/categories - Create new category
     router.post('/', requireAuth, async (req, res) => {
+        const { name } = req.body;
+        const username = req.session.username;
+
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Category name is required' });
+        }
+
+        const trimmedName = name.trim();
+        if (trimmedName.length > 50) {
+            return res.status(400).json({ error: 'Category name must be 50 characters or less' });
+        }
+
+        const newCategory = {
+            username,
+            name: trimmedName,
+            createdAt: new Date().toISOString()
+        };
+
         try {
-            const { name } = req.body;
-            const username = req.session.username;
-
-            if (!name || typeof name !== 'string' || name.trim().length === 0) {
-                return res.status(400).json({ error: 'Category name is required' });
-            }
-
-            const trimmedName = name.trim();
-            if (trimmedName.length > 50) {
-                return res.status(400).json({ error: 'Category name must be 50 characters or less' });
-            }
-
-            const newCategory = {
-                username,
-                name: trimmedName,
-                createdAt: new Date().toISOString()
-            };
-
             await categoriesCollection.insertOne(newCategory);
-
-            res.status(201).json({
-                message: 'Category created successfully',
-                category: {
-                    _id: newCategory._id,
-                    name: newCategory.name,
-                    createdAt: newCategory.createdAt,
-                    favoriteCount: 0
-                }
-            });
         } catch (error) {
             if (error.code === 11000) {
-                // Duplicate key error (unique index violation)
                 return res.status(400).json({ error: 'A category with this name already exists' });
+            } else {
+                throw error;
             }
-            console.error('Error creating category:', error);
-            res.status(500).json({ error: 'Internal server error' });
         }
+
+        res.status(201).json({
+            message: 'Category created successfully',
+            category: {
+                _id: newCategory._id,
+                name: newCategory.name,
+                createdAt: newCategory.createdAt,
+                favoriteCount: 0
+            }
+        });
     });
 
     // DELETE /api/categories/:categoryName - Delete category and cascade delete favorites
     router.delete('/:categoryName', requireAuth, async (req, res) => {
-        try {
-            const { categoryName } = req.params;
-            const username = req.session.username;
+        const { categoryName } = req.params;
+        const username = req.session.username;
 
-            const category = await categoriesCollection.findOne({ username, name: categoryName });
+        const category = await categoriesCollection.findOne({ username, name: categoryName });
 
-            if (!category) {
-                return res.status(404).json({ error: 'Category not found' });
-            }
-
-            // Delete all favorites in this category
-            const favoritesResult = await favoritesCollection.deleteMany({
-                username,
-                categoryName
-            });
-
-            // Delete the category
-            await categoriesCollection.deleteOne({ _id: category._id });
-
-            res.status(200).json({
-                message: `Category and ${favoritesResult.deletedCount} favorite(s) deleted successfully`,
-                deletedFavorites: favoritesResult.deletedCount
-            });
-        } catch (error) {
-            console.error('Error deleting category:', error);
-            res.status(500).json({ error: 'Internal server error' });
+        if (!category) {
+            return res.status(404).json({ error: 'Category not found' });
         }
+
+        // Delete all favorites in this category
+        const favoritesResult = await favoritesCollection.deleteMany({
+            username,
+            categoryName
+        });
+
+        // Delete the category
+        await categoriesCollection.deleteOne({ _id: category._id });
+
+        res.status(200).json({
+            message: `Category and ${favoritesResult.deletedCount} favorite(s) deleted successfully`,
+            deletedFavorites: favoritesResult.deletedCount
+        });
     });
 
     return router;

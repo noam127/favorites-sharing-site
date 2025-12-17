@@ -59,43 +59,38 @@ initializeMongoDBCollections().then(() => {
 
 // GET /api/public/:token - Public view (no auth required)
 app.get('/api/public/:token', async (req, res) => {
-    try {
-        const { token } = req.params;
-        const user = await usersCollection.findOne({ publicShareToken: token });
+    const { token } = req.params;
+    const user = await usersCollection.findOne({ publicShareToken: token });
 
-        if (!user) {
-            return res.status(404).json({ error: 'Shared link not found or has been changed' });
-        }
-
-        const categories = await categoriesCollection
-            .find({ username: user.username })
-            .sort({ createdAt: -1 })
-            .toArray();
-
-        const publicFavorites = await favoritesCollection
-            .find({
-                username: user.username,
-                isPrivate: false
-            })
-            .sort({ createdAt: -1 })
-            .toArray();
-
-        const categoriesWithFavorites = categories.map(category => ({
-            name: category.name,
-            createdAt: category.createdAt,
-            favorites: publicFavorites
-                .filter(fav => fav.categoryName === category.name)
-                .map(fav => ({
-                    title: fav.title,
-                    createdAt: fav.createdAt
-                }))
-        }));
-
-        res.status(200).json({ categories: categoriesWithFavorites });
-    } catch (error) {
-        console.error('Error fetching public favorites:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (!user) {
+        return res.status(404).json({ error: 'Shared link not found or has been changed' });
     }
+
+    const categories = await categoriesCollection
+        .find({ username: user.username })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+    const publicFavorites = await favoritesCollection
+        .find({
+            username: user.username,
+            isPrivate: false
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+    const categoriesWithFavorites = categories.map(category => ({
+        name: category.name,
+        createdAt: category.createdAt,
+        favorites: publicFavorites
+            .filter(fav => fav.categoryName === category.name)
+            .map(fav => ({
+                title: fav.title,
+                createdAt: fav.createdAt
+            }))
+    }));
+
+    res.status(200).json({ categories: categoriesWithFavorites });
 });
 
 app.listen(PORT, () => {

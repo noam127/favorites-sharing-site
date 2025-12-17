@@ -1,31 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import axios from '../api/axios';
+import useAsync from '../hooks/useAsync';
 
 function PublicSharePage({ token }) {
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
 
-    useEffect(() => {
-        fetchPublicData();
-    }, [token]);
-
-    const fetchPublicData = async () => {
+    const fetchCategories = useAsync(async () => {
         try {
-            setLoading(true);
             const response = await axios.get(`/api/public/${token}`);
             setCategories(response.data.categories);
-            setError('');
         } catch (err) {
             if (err.response?.status === 404) {
-                setError('This shared link is invalid or has been changed.');
+                throw 'This shared link is invalid or has been changed.';
             } else {
-                setError('Failed to load shared favorites.');
+                throw 'Failed to load shared favorites.';
             }
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    useEffect(() => {
+        fetchCategories.run();
+    }, [token]);
 
     const navbar = (
         <nav className="navbar navbar-expand-lg shadow-sm"
@@ -42,7 +37,7 @@ function PublicSharePage({ token }) {
         </nav>
     );
 
-    if (loading) {
+    if (fetchCategories.isRunning) {
         return (
             <div className="min-vh-100 min-vw-100" style={{ backgroundColor: '#f8f9fa' }}>
                 {navbar}
@@ -55,7 +50,7 @@ function PublicSharePage({ token }) {
         );
     }
 
-    if (error) {
+    if (fetchCategories.error) {
         return (
             <div className="min-vh-100 min-vw-100" style={{ backgroundColor: '#f8f9fa' }}>
                 {navbar}
@@ -66,7 +61,7 @@ function PublicSharePage({ token }) {
                                 <div className="card-body text-center p-5">
                                     <i className="bi bi-exclamation-circle text-danger" style={{ fontSize: '3rem' }}></i>
                                     <h4 className="mt-3">Link Not Found</h4>
-                                    <p className="text-muted">{error}</p>
+                                    <p className="text-muted">{fetchCategories.error}</p>
                                 </div>
                             </div>
                         </div>
