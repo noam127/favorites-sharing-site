@@ -2,21 +2,32 @@ import { useState } from 'react';
 import CategoryCard from './CategoryCard';
 import AddCategoryForm from './AddCategoryForm';
 
-function CategoryList({ categories, selectedCategory, onSelectCategory, onAddCategory, onDeleteCategory }) {
+function CategoryList({ categories, selectedCategory, onSelectCategory, onAddCategory, onDeleteCategory, onGetSuggestions }) {
     const [showAddForm, setShowAddForm] = useState(false);
 
     return (
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="mb-0">My Categories</h5>
-                <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setShowAddForm(true)}
-                    disabled={showAddForm}
-                >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    New
-                </button>
+                <div className="d-flex gap-2">
+                    {selectedCategory && (
+                        <button
+                            className="btn btn-success btn-sm"
+                            onClick={onGetSuggestions}
+                        >
+                            <i className="bi bi-lightbulb me-1"></i>
+                            Suggestions
+                        </button>
+                    )}
+                    <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setShowAddForm(true)}
+                        disabled={showAddForm}
+                    >
+                        <i className="bi bi-plus-circle me-1"></i>
+                        New
+                    </button>
+                </div>
             </div>
 
             {showAddForm && (
