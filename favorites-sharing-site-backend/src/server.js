@@ -4,6 +4,9 @@ import session from 'express-session';
 import { RedisStore } from 'connect-redis';
 import { createRedisClient } from './redis-connection.js';
 import { connectToMongoDB, getDbCollections, mongoClient } from './mongodb-connection.js';
+import { createAPIAuthRouter } from './api-routers/auth.js';
+import { createAPICategoriesRouter } from './api-routers/categories.js';
+import { createAPIFavoritesRouter } from './api-routers/favorites.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -35,90 +38,62 @@ app.use(session({
 }));
 
 let usersCollection;
+let categoriesCollection;
+let favoritesCollection;
 
 async function initializeMongoDBCollections() {
     const db = await connectToMongoDB();
-    usersCollection = (await getDbCollections(db)).users;
+    const collections = await getDbCollections(db);
+    usersCollection = collections.users;
+    categoriesCollection = collections.categories;
+    favoritesCollection = collections.favorites;
 }
 
-initializeMongoDBCollections();
-
-// Sign-in/Sign-up endpoint
-app.post('/api/auth/signin', async (req, res) => {
-    const { username } = req.body;
-
-    if (!username || typeof username !== 'string' || username.trim().length === 0) {
-        return res.status(400).json({ error: 'Username is required' });
-    }
-
-    const trimmedUsername = username.trim();
-    const userInDb = await usersCollection.findOne({ username: trimmedUsername });
-
-    let statusCode;
-    let message;
-    let userInResponse;
-    let isNewUser;
-
-    if (userInDb) {
-        statusCode = 200;
-        message = 'Sign in successful';
-        userInResponse = userInResponse = {
-            username: userInDb.username,
-            createdAt: userInDb.createdAt,
-        };
-
-        isNewUser = false;
-    } else {
-        statusCode = 201;
-        message = 'Account created successfully';
-        userInResponse = {
-            username: trimmedUsername,
-            createdAt: new Date().toISOString(),
-        };
-
-        await usersCollection.insertOne(userInResponse);
-
-        isNewUser = true;
-    }
-
-    req.session.username = userInResponse.username;
-    return res.status(statusCode).json({
-        message,
-        user: userInResponse,
-        isNewUser,
-    });
+initializeMongoDBCollections().then(() => {
+    app.use('/api/auth', createAPIAuthRouter(usersCollection));
+    app.use('/api/categories', createAPICategoriesRouter(categoriesCollection, favoritesCollection));
+    app.use('/api', createAPIFavoritesRouter(categoriesCollection, favoritesCollection));
 });
 
-app.post('/api/auth/signout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            res.status(500).json({ error: 'Failed to sign out' });
-        } else {
-            res.status(200).json({ message: 'Sign out successful' });
+// GET /api/public/:token - Public view (no auth required)
+app.get('/api/public/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const user = await usersCollection.findOne({ publicShareToken: token });
+
+        if (!user) {
+            return res.status(404).json({ error: 'Shared link not found or has been changed' });
         }
-    });
-});
 
-app.get('/api/auth/session', async (req, res) => {
-    if (!req.session.username) {
-        return res.status(401).json({ authenticated: false });
+        const categories = await categoriesCollection
+            .find({ username: user.username })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        const publicFavorites = await favoritesCollection
+            .find({
+                username: user.username,
+                isPrivate: false
+            })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        const categoriesWithFavorites = categories.map(category => ({
+            name: category.name,
+            createdAt: category.createdAt,
+            favorites: publicFavorites
+                .filter(fav => fav.categoryName === category.name)
+                .map(fav => ({
+                    title: fav.title,
+                    createdAt: fav.createdAt
+                }))
+        }));
+
+        res.status(200).json({ categories: categoriesWithFavorites });
+    } catch (error) {
+        console.error('Error fetching public favorites:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
-
-    const user = await usersCollection.findOne({ username: req.session.username });
-
-    if (!user) {
-        // Session exists but user doesn't exist in database
-        req.session.destroy();
-        return res.status(401).json({ authenticated: false });
-    }
-
-    return res.status(200).json({
-        authenticated: true,
-        user: {
-            username: user.username,
-            createdAt: user.createdAt
-        }
-    });
 });
 
 app.listen(PORT, () => {

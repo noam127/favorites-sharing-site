@@ -1,68 +1,204 @@
+import { useState, useEffect } from 'react';
+import axios from '../api/axios';
+import CategoryList from '../components/CategoryList';
+import FavoritesList from '../components/FavoritesList';
+import ShareLinkDisplay from '../components/ShareLinkDisplay';
+
 function FavoritesPage({ user, onSignOut }) {
-    const navbar = <nav className="navbar navbar-expand-lg shadow-sm"
-        style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <div className="container-fluid px-4">
-            <span className="navbar-brand text-white fw-bold fs-4 mb-0">
-                Favorites Sharing Site
-            </span>
-            <div className="d-flex align-items-center">
-                <span className="text-white me-3">
-                    <i className="bi bi-person-circle me-2"></i>
-                    Welcome, <strong>{user.username}</strong>!
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [favorites, setFavorites] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
+
+    // Fetch categories on mount
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    // Fetch favorites when category is selected
+    useEffect(() => {
+        if (selectedCategory) {
+            fetchFavorites(selectedCategory.name);
+        } else {
+            setFavorites([]);
+        }
+    }, [selectedCategory]);
+
+    const fetchCategories = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('/api/categories');
+            setCategories(response.data.categories);
+            setError('');
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to load categories');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchFavorites = async (categoryName) => {
+        try {
+            const response = await axios.get(`/api/categories/${encodeURIComponent(categoryName)}/favorites`);
+            setFavorites(response.data.favorites);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to load favorites');
+        }
+    };
+
+    const handleAddCategory = async (name) => {
+        const response = await axios.post('/api/categories', { name });
+        const newCategory = response.data.category;
+        setCategories([newCategory, ...categories]);
+        setSelectedCategory(newCategory);
+    };
+
+    const handleDeleteCategory = async (categoryName) => {
+        try {
+            await axios.delete(`/api/categories/${encodeURIComponent(categoryName)}`);
+            setCategories(categories.filter(cat => cat.name !== categoryName));
+
+            if (selectedCategory?.name === categoryName) {
+                setSelectedCategory(null);
+                setFavorites([]);
+            }
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to delete category');
+        }
+    };
+
+    const handleAddFavorite = async (title, isPrivate) => {
+        if (!selectedCategory) return;
+
+        const response = await axios.post(
+            `/api/categories/${encodeURIComponent(selectedCategory.name)}/favorites`,
+            { title, isPrivate }
+        );
+
+        setFavorites([response.data.favorite, ...favorites]);
+
+        // Update favorite count in categories list
+        setCategories(categories.map(cat =>
+            cat.name === selectedCategory.name
+                ? { ...cat, favoriteCount: cat.favoriteCount + 1 }
+                : cat
+        ));
+    };
+
+    const handleUpdateFavorite = async (favoriteId, updates) => {
+        await axios.patch(`/api/favorites/${favoriteId}`, updates);
+
+        setFavorites(favorites.map(fav =>
+            fav._id === favoriteId
+                ? { ...fav, ...updates }
+                : fav
+        ));
+    };
+
+    const handleDeleteFavorite = async (favoriteId) => {
+        try {
+            await axios.delete(`/api/favorites/${favoriteId}`);
+            setFavorites(favorites.filter(fav => fav._id !== favoriteId));
+
+            // Update favorite count in categories list
+            if (selectedCategory) {
+                setCategories(categories.map(cat =>
+                    cat.name === selectedCategory.name
+                        ? { ...cat, favoriteCount: Math.max(0, cat.favoriteCount - 1) }
+                        : cat
+                ));
+            }
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to delete favorite');
+        }
+    };
+
+    const handleRegenerateToken = async () => {
+        const response = await axios.patch('/api/auth/regenerate-token');
+        const newToken = response.data.publicShareToken;
+        setPublicShareToken(newToken);
+    };
+
+    const navbar = (
+        <nav className="navbar navbar-expand-lg shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <div className="container-fluid px-4">
+                <span className="navbar-brand text-white fw-bold fs-4 mb-0">
+                    Favorites Sharing Site
                 </span>
-                <button
-                    onClick={onSignOut}
-                    className="btn btn-outline-light btn-sm"
-                >
-                    Sign Out
-                </button>
+                <div className="d-flex align-items-center">
+                    <span className="text-white me-3">
+                        <i className="bi bi-person-circle me-2"></i>
+                        Welcome, <strong>{user.username}</strong>!
+                    </span>
+                    <button
+                        onClick={onSignOut}
+                        className="btn btn-outline-light btn-sm"
+                    >
+                        Sign Out
+                    </button>
+                </div>
             </div>
-        </div>
-    </nav>;
+        </nav>
+    );
 
-    const youAreSignedIn = <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body p-4">
-            <h2 className="card-title mb-3">
-                <i className="bi bi-person-check-fill text-success me-2"></i>
-                You're signed in!
-            </h2>
-            <p className="card-text text-muted mb-3">
-                Signed in as <span className="badge bg-primary">{user.username}</span>
-            </p>
-            <hr />
-            <div className="alert alert-info mb-0" role="alert">
-                <i className="bi bi-info-circle-fill me-2"></i>
-                <strong>Coming soon:</strong> Share your favorite things with friends!
+    if (loading) {
+        return (
+            <div className="min-vh-100 min-vw-100" style={{ backgroundColor: '#f8f9fa' }}>
+                {navbar}
+                <main className="container py-5 text-center">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </main>
             </div>
-        </div>
-    </div>;
-
-    const accountInfo = <div className="card border-0 shadow-sm">
-        <div className="card-body p-4">
-            <h3 className="card-title h5 mb-3">Account Information</h3>
-            <ul className="list-group list-group-flush">
-                <li className="list-group-item d-flex justify-content-between align-items-center px-0">
-                    <span className="text-muted">Username</span>
-                    <strong>{user.username}</strong>
-                </li>
-                <li className="list-group-item d-flex justify-content-between align-items-center px-0">
-                    <span className="text-muted">Account Created</span>
-                    <strong>{new Date(user.createdAt).toLocaleDateString()}</strong>
-                </li>
-            </ul>
-        </div>
-    </div>;
+        );
+    }
 
     return (
         <div className="min-vh-100 min-vw-100" style={{ backgroundColor: '#f8f9fa' }}>
             {navbar}
 
-            <main className="container py-5">
-                <div className="row justify-content-center">
-                    <div className="col-lg-8">
-                        {youAreSignedIn}
+            <main className="container py-4">
+                {error && (
+                    <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                        {error}
+                        <button
+                            type="button"
+                            className="btn-close"
+                            onClick={() => setError('')}
+                        ></button>
+                    </div>
+                )}
 
-                        {accountInfo}
+                <div className="mb-4">
+                    <ShareLinkDisplay
+                        token={publicShareToken}
+                        onRegenerateToken={handleRegenerateToken}
+                    />
+                </div>
+
+                <div className="row">
+                    <div className="col-md-4 mb-4">
+                        <CategoryList
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            onSelectCategory={setSelectedCategory}
+                            onAddCategory={handleAddCategory}
+                            onDeleteCategory={handleDeleteCategory}
+                        />
+                    </div>
+
+                    <div className="col-md-8">
+                        <FavoritesList
+                            category={selectedCategory}
+                            favorites={favorites}
+                            onAddFavorite={handleAddFavorite}
+                            onUpdateFavorite={handleUpdateFavorite}
+                            onDeleteFavorite={handleDeleteFavorite}
+                        />
                     </div>
                 </div>
             </main>
