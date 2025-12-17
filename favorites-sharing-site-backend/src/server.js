@@ -59,21 +59,17 @@ initializeMongoDBCollections().then(() => {
 app.get('/api/public/:token', async (req, res) => {
     try {
         const { token } = req.params;
-
-        // Find user by public share token
         const user = await usersCollection.findOne({ publicShareToken: token });
 
         if (!user) {
             return res.status(404).json({ error: 'Shared link not found or has been changed' });
         }
 
-        // Get all categories for this user
         const categories = await categoriesCollection
             .find({ username: user.username })
             .sort({ createdAt: -1 })
             .toArray();
 
-        // Get all non-private favorites for this user
         const publicFavorites = await favoritesCollection
             .find({
                 username: user.username,
@@ -82,7 +78,6 @@ app.get('/api/public/:token', async (req, res) => {
             .sort({ createdAt: -1 })
             .toArray();
 
-        // Group favorites by category
         const categoriesWithFavorites = categories.map(category => ({
             name: category.name,
             createdAt: category.createdAt,
@@ -94,10 +89,7 @@ app.get('/api/public/:token', async (req, res) => {
                 }))
         }));
 
-        // Return categories with their public favorites (no username for privacy)
-        res.status(200).json({
-            categories: categoriesWithFavorites
-        });
+        res.status(200).json({ categories: categoriesWithFavorites });
     } catch (error) {
         console.error('Error fetching public favorites:', error);
         res.status(500).json({ error: 'Internal server error' });

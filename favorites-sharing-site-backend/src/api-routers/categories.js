@@ -13,21 +13,20 @@ export const createAPICategoriesRouter = (categoriesCollection, favoritesCollect
                 .sort({ createdAt: -1 })
                 .toArray();
 
-            // Get favorite counts for each category
-            const categoriesWithCounts = await Promise.all(
-                categories.map(async (category) => {
-                    const favoriteCount = await favoritesCollection.countDocuments({
-                        username,
-                        categoryName: category.name
-                    });
-                    return {
-                        _id: category._id,
-                        name: category.name,
-                        createdAt: category.createdAt,
-                        favoriteCount
-                    };
-                })
-            );
+            let categoriesWithCounts = [];
+            for (const category of categories) {
+                const favoriteCount = await favoritesCollection.countDocuments({
+                    username,
+                    categoryName: category.name
+                });
+
+                categoriesWithCounts.push({
+                    _id: category._id,
+                    name: category.name,
+                    createdAt: category.createdAt,
+                    favoriteCount
+                });
+            }
 
             res.status(200).json({ categories: categoriesWithCounts });
         } catch (error) {

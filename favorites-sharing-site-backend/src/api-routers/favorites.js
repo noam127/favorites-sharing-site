@@ -1,4 +1,5 @@
 import express from 'express';
+import { ObjectId } from 'mongodb';
 import requireAuth from '../authMiddleware.js';
 
 export const createAPIFavoritesRouter = (categoriesCollection, favoritesCollection) => {
@@ -79,7 +80,6 @@ export const createAPIFavoritesRouter = (categoriesCollection, favoritesCollecti
             const { title, isPrivate } = req.body;
             const username = req.session.username;
 
-            const { ObjectId } = await import('mongodb');
             const favorite = await favoritesCollection.findOne({
                 _id: new ObjectId(favoriteId),
                 username
@@ -95,10 +95,12 @@ export const createAPIFavoritesRouter = (categoriesCollection, favoritesCollecti
                 if (typeof title !== 'string' || title.trim().length === 0) {
                     return res.status(400).json({ error: 'Favorite title cannot be empty' });
                 }
+
                 const trimmedTitle = title.trim();
                 if (trimmedTitle.length > 200) {
                     return res.status(400).json({ error: 'Favorite title must be 200 characters or less' });
                 }
+
                 updates.title = trimmedTitle;
             }
 
@@ -133,7 +135,6 @@ export const createAPIFavoritesRouter = (categoriesCollection, favoritesCollecti
             const { favoriteId } = req.params;
             const username = req.session.username;
 
-            const { ObjectId } = await import('mongodb');
             const favorite = await favoritesCollection.findOne({
                 _id: new ObjectId(favoriteId),
                 username

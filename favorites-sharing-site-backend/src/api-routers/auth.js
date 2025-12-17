@@ -27,17 +27,6 @@ export const createAPIAuthRouter = (usersCollection) => {
         if (userInDb) {
             statusCode = 200;
             message = 'Sign in successful';
-
-            // Ensure existing users have a share token
-            if (!userInDb.publicShareToken) {
-                const newToken = generateShareToken();
-                await usersCollection.updateOne(
-                    { username: trimmedUsername },
-                    { $set: { publicShareToken: newToken } }
-                );
-                userInDb.publicShareToken = newToken;
-            }
-
             userInResponse = {
                 username: userInDb.username,
                 createdAt: userInDb.createdAt,
@@ -88,16 +77,6 @@ export const createAPIAuthRouter = (usersCollection) => {
             // Session exists but user doesn't exist in database
             req.session.destroy();
             return res.status(401).json({ authenticated: false });
-        }
-
-        // Ensure user has a share token
-        if (!user.publicShareToken) {
-            const newToken = generateShareToken();
-            await usersCollection.updateOne(
-                { username: req.session.username },
-                { $set: { publicShareToken: newToken } }
-            );
-            user.publicShareToken = newToken;
         }
 
         return res.status(200).json({
