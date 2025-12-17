@@ -3,6 +3,7 @@ import axios from '../api/axios';
 import CategoryList from '../components/CategoryList';
 import FavoritesList from '../components/FavoritesList';
 import ShareLinkDisplay from '../components/ShareLinkDisplay';
+import SuggestionsModal from '../components/SuggestionsModal';
 
 function FavoritesPage({ user, onSignOut }) {
     const [categories, setCategories] = useState([]);
@@ -11,6 +12,10 @@ function FavoritesPage({ user, onSignOut }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
+    const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestionsError, setSuggestionsError] = useState('');
 
     // Fetch categories on mount
     useEffect(() => {
@@ -121,6 +126,40 @@ function FavoritesPage({ user, onSignOut }) {
         setPublicShareToken(newToken);
     };
 
+    const handleGetSuggestions = async () => {
+        if (!selectedCategory) return;
+
+        setShowSuggestionsModal(true);
+        setSuggestionsLoading(true);
+        setSuggestionsError('');
+        setSuggestions([]);
+
+        try {
+            const response = await axios.post(
+                `/api/categories/${encodeURIComponent(selectedCategory.name)}/suggestions`
+            );
+            setSuggestions(response.data.suggestions);
+        } catch (err) {
+            setSuggestionsError(
+                err.response?.data?.error || 'Failed to generate suggestions'
+            );
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    };
+
+    const handleAddSuggestion = async (title) => {
+        try {
+            await handleAddFavorite(title, false);
+            // Remove from suggestions list to prevent duplicates
+            setSuggestions(prev => prev.filter(s => s.title !== title));
+            return true;
+        } catch (err) {
+            console.error('Failed to add suggestion:', err);
+            return false;
+        }
+    };
+
     const navbar = (
         <nav className="navbar navbar-expand-lg shadow-sm"
             style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
@@ -188,6 +227,7 @@ function FavoritesPage({ user, onSignOut }) {
                             onSelectCategory={setSelectedCategory}
                             onAddCategory={handleAddCategory}
                             onDeleteCategory={handleDeleteCategory}
+                            onGetSuggestions={handleGetSuggestions}
                         />
                     </div>
 
@@ -202,6 +242,16 @@ function FavoritesPage({ user, onSignOut }) {
                     </div>
                 </div>
             </main>
+
+            <SuggestionsModal
+                show={showSuggestionsModal}
+                onClose={() => setShowSuggestionsModal(false)}
+                suggestions={suggestions}
+                categoryName={selectedCategory?.name}
+                loading={suggestionsLoading}
+                error={suggestionsError}
+                onAddSuggestion={handleAddSuggestion}
+            />
         </div>
     );
 }
