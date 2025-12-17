@@ -1,7 +1,9 @@
-import useLoader from '../hooks/useLoader';
+import { useState } from 'react';
+import useAsync from '../hooks/useAsync';
 
 function AddCategoryForm({ onAdd, onCancel }) {
-    const { data: name, setData: setName, loading, error, reload } = useLoader('', async (event) => {
+    const [name, setName] = useState('');
+    const handleSubmit = useAsync(async (event) => {
         event.preventDefault();
 
         if (!name.trim()) {
@@ -15,7 +17,7 @@ function AddCategoryForm({ onAdd, onCancel }) {
         try {
             await onAdd(name.trim());
             onCancel();
-            return '';
+            setName('');
         } catch (err) {
             throw err.response?.data?.error || 'Failed to create category';
         }
@@ -25,7 +27,7 @@ function AddCategoryForm({ onAdd, onCancel }) {
         <div className="card border-0 shadow-sm mb-3">
             <div className="card-body">
                 <h6 className="card-title mb-3">New Category</h6>
-                <form onSubmit={reload}>
+                <form onSubmit={handleSubmit.run}>
                     <div className="mb-3">
                         <input
                             type="text"
@@ -35,23 +37,23 @@ function AddCategoryForm({ onAdd, onCancel }) {
                             onChange={(e) => setName(e.target.value)}
                             maxLength={50}
                             autoFocus
-                            disabled={loading}
+                            disabled={handleSubmit.isRunning}
                         />
-                        {error && <div className="text-danger small mt-1">{error}</div>}
+                        {handleSubmit.error && <div className="text-danger small mt-1">{handleSubmit.error}</div>}
                     </div>
                     <div className="d-flex gap-2">
                         <button
                             type="submit"
                             className="btn btn-primary btn-sm"
-                            disabled={loading}
+                            disabled={handleSubmit.isRunning}
                         >
-                            {loading ? 'Creating...' : 'Create'}
+                            {handleSubmit.isRunning ? 'Creating...' : 'Create'}
                         </button>
                         <button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             onClick={onCancel}
-                            disabled={loading}
+                            disabled={handleSubmit.isRunning}
                         >
                             Cancel
                         </button>

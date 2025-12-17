@@ -1,5 +1,5 @@
 import express from 'express';
-import requireAuth from '../authMiddleware.js';
+import requireAuth from '../middleware/requireAuth.js';
 import { generateSuggestions } from '../services/anthropic-service.js';
 
 export const createAPISuggestionsRouter = (categoriesCollection, favoritesCollection) => {

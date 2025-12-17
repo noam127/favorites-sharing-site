@@ -1,26 +1,25 @@
-import useLoader from '../hooks/useLoader';
+import { useState } from 'react';
+import useAsync from '../hooks/useAsync';
 
 function AddFavoriteForm({ onAdd }) {
-    const {
-        data: favorite,
-        setData: setFavorite,
-        loading,
-        error,
-        reload: handleSubmit,
-    } = useLoader({ title: '', isPrivate: false }, async (event) => {
+    const [title, setTitle] = useState('');
+    const [isPrivate, setIsPrivate] = useState(false);
+
+    const handleSubmit = useAsync(async (event) => {
         event.preventDefault();
 
-        if (!favorite.title.trim()) {
+        if (!title.trim()) {
             throw 'Title is required';
         }
 
-        if (favorite.title.trim().length > 200) {
+        if (title.trim().length > 200) {
             throw 'Title must be 200 characters or less';
         }
 
         try {
-            await onAdd(favorite.title.trim(), favorite.isPrivate);
-            return { title: '', isPrivate: false };
+            await onAdd(title.trim(), isPrivate);
+            setTitle('');
+            setIsPrivate(false);
         } catch (err) {
             throw err.response?.data?.error || 'Failed to add favorite';
         }
@@ -29,18 +28,18 @@ function AddFavoriteForm({ onAdd }) {
     return (
         <div className="card border-0 shadow-sm mb-3">
             <div className="card-body">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit.run}>
                     <div className="mb-2">
                         <input
                             type="text"
                             className="form-control"
                             placeholder="Add a new favorite..."
-                            value={favorite.title}
-                            onChange={(e) => setFavorite({ ...favorite, title: e.target.value })}
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
                             maxLength={200}
-                            disabled={loading}
+                            disabled={handleSubmit.isRunning}
                         />
-                        {error && <div className="text-danger small mt-1">{error}</div>}
+                        {handleSubmit.error && <div className="text-danger small mt-1">{handleSubmit.error}</div>}
                     </div>
                     <div className="d-flex justify-content-between align-items-center">
                         <div className="form-check">
@@ -48,9 +47,9 @@ function AddFavoriteForm({ onAdd }) {
                                 className="form-check-input"
                                 type="checkbox"
                                 id="privateCheckbox"
-                                checked={favorite.isPrivate}
-                                onChange={(e) => setFavorite({ ...favorite, isPrivate: e.target.checked })}
-                                disabled={loading}
+                                checked={isPrivate}
+                                onChange={(e) => setIsPrivate(e.target.checked)}
+                                disabled={handleSubmit.isRunning}
                             />
                             <label className="form-check-label text-muted small" htmlFor="privateCheckbox">
                                 <i className="bi bi-lock me-1"></i>
@@ -60,9 +59,9 @@ function AddFavoriteForm({ onAdd }) {
                         <button
                             type="submit"
                             className="btn btn-primary btn-sm"
-                            disabled={loading}
+                            disabled={handleSubmit.isRunning}
                         >
-                            {loading ? 'Adding...' : 'Add'}
+                            {handleSubmit.isRunning ? 'Adding...' : 'Add'}
                         </button>
                     </div>
                 </form>
