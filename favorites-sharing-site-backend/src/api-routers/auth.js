@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import requireAuth from '../authMiddleware.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 // Token generator for public share links
 const generateShareToken = () => crypto.randomBytes(8).toString('hex');
@@ -91,23 +91,18 @@ export const createAPIAuthRouter = (usersCollection) => {
 
     // PATCH /api/auth/regenerate-token - Regenerate public share token
     router.patch('/regenerate-token', requireAuth, async (req, res) => {
-        try {
-            const username = req.session.username;
-            const newToken = generateShareToken();
+        const username = req.session.username;
+        const newToken = generateShareToken();
 
-            await usersCollection.updateOne(
-                { username },
-                { $set: { publicShareToken: newToken } }
-            );
+        await usersCollection.updateOne(
+            { username },
+            { $set: { publicShareToken: newToken } }
+        );
 
-            res.status(200).json({
-                message: 'Share token regenerated successfully',
-                publicShareToken: newToken
-            });
-        } catch (error) {
-            console.error('Error regenerating token:', error);
-            res.status(500).json({ error: 'Internal server error' });
-        }
+        res.status(200).json({
+            message: 'Share token regenerated successfully',
+            publicShareToken: newToken
+        });
     });
 
     return router;
