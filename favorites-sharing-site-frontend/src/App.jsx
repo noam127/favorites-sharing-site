@@ -3,10 +3,10 @@ import SignInPage from './pages/SignInPage';
 import FavoritesPage from './pages/FavoritesPage';
 import PublicSharePage from './pages/PublicSharePage';
 import axios from './api/axios';
+import useAsync from './hooks/useAsync';
 
 function App() {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
 
     // Check if this is a public share page
     if (window.location.pathname.startsWith('/public/')) {
@@ -14,28 +14,25 @@ function App() {
         return <PublicSharePage token={token} />;
     }
 
+    const checkSession = useAsync(async () => {
+        try {
+            const response = await axios.get('/api/auth/session');
+            if (response.data.authenticated) {
+                setUser(response.data.user);
+            }
+        } catch (error) {
+            // 'Unauthorized' is expected behaviour
+            if (error.status == 401) {
+                return;
+            }
+
+            console.error('Failed to check session:', error);
+        }
+    });
+
     // Check for existing session on mount
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const response = await axios.get('/api/auth/session');
-
-                if (response.data.authenticated) {
-                    setUser(response.data.user);
-                }
-            } catch (error) {
-                // 'Unauthorized' is expected behaviour
-                if (error.status == 401) {
-                    return;
-                }
-
-                console.error('Failed to check session:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        checkSession();
+        checkSession.run();
     }, []);
 
     const handleSignIn = (userData, isNewUser) => {
@@ -57,7 +54,7 @@ function App() {
         setUser(null);
     };
 
-    if (loading) {
+    if (checkSession.isRunning) {
         return (
             <div className="min-vh-100 d-flex align-items-center justify-content-center">
                 <div className="spinner-border text-primary" role="status">

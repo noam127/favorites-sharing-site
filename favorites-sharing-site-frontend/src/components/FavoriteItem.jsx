@@ -1,41 +1,37 @@
 import { useState } from 'react';
+import useAsync from '../hooks/useAsync';
 
 function FavoriteItem({ favorite, onUpdate, onDelete }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(favorite.title);
-    const [loading, setLoading] = useState(false);
-
-    const handleSave = async () => {
+    
+    const handleSave = useAsync(async () => {
         if (!editTitle.trim()) {
             return;
         }
-
+        
         if (editTitle.trim() === favorite.title) {
             setIsEditing(false);
             return;
         }
 
-        setLoading(true);
         try {
             await onUpdate(favorite._id, { title: editTitle.trim() });
             setIsEditing(false);
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to update favorite');
-        } finally {
-            setLoading(false);
         }
-    };
-
-    const handleTogglePrivacy = async () => {
-        setLoading(true);
+    });
+    
+    const handleTogglePrivacy = useAsync(async () => {
         try {
             await onUpdate(favorite._id, { isPrivate: !favorite.isPrivate });
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to update privacy');
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    const loading = handleSave.isRunning || handleTogglePrivacy.isRunning;
 
     const handleDelete = () => {
         if (window.confirm(`Delete "${favorite.title}"?`)) {
@@ -45,7 +41,7 @@ function FavoriteItem({ favorite, onUpdate, onDelete }) {
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
-            handleSave();
+            handleSave.run();
         } else if (e.key === 'Escape') {
             setEditTitle(favorite.title);
             setIsEditing(false);
@@ -65,7 +61,7 @@ function FavoriteItem({ favorite, onUpdate, onDelete }) {
                                 className="form-control form-control-sm"
                                 value={editTitle}
                                 onChange={(e) => setEditTitle(e.target.value)}
-                                onBlur={handleSave}
+                                onBlur={handleSave.run}
                                 onKeyDown={handleKeyDown}
                                 maxLength={200}
                                 autoFocus
@@ -89,7 +85,7 @@ function FavoriteItem({ favorite, onUpdate, onDelete }) {
                     <div className="d-flex gap-1">
                         <button
                             className={`btn btn-sm ${favorite.isPrivate ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
-                            onClick={handleTogglePrivacy}
+                            onClick={handleTogglePrivacy.run}
                             disabled={loading}
                             title={favorite.isPrivate ? 'Make public' : 'Make private'}
                         >

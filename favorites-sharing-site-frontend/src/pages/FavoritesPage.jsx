@@ -4,54 +4,52 @@ import CategoryList from '../components/CategoryList';
 import FavoritesList from '../components/FavoritesList';
 import ShareLinkDisplay from '../components/ShareLinkDisplay';
 import SuggestionsModal from '../components/SuggestionsModal';
+import useAsync from '../hooks/useAsync';
 
 function FavoritesPage({ user, onSignOut }) {
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [favorites, setFavorites] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
     const [suggestionsError, setSuggestionsError] = useState('');
 
+    const fetchCategories = useAsync(async () => {
+        try {
+            const response = await axios.get('/api/categories');
+            setCategories(response.data.categories);
+        } catch (err) {
+            throw err.response?.data?.error || 'Failed to load categories';
+        }
+    });
+
+    const fetchFavorites = useAsync(async (categoryName) => {
+        try {
+            const response = await axios.get(`/api/categories/${encodeURIComponent(categoryName)}/favorites`);
+            setFavorites(response.data.favorites);
+        } catch (err) {
+            throw err.response?.data?.error || 'Failed to load favorites';
+        }
+    });
+
+    const loading = fetchCategories.isRunning || fetchFavorites.isRunning;
+    const error = fetchCategories.error || fetchFavorites.error;
+
     // Fetch categories on mount
     useEffect(() => {
-        fetchCategories();
+        fetchCategories.run();
     }, []);
 
     // Fetch favorites when category is selected
     useEffect(() => {
         if (selectedCategory) {
-            fetchFavorites(selectedCategory.name);
+            fetchFavorites.run(selectedCategory.name);
         } else {
             setFavorites([]);
         }
     }, [selectedCategory]);
-
-    const fetchCategories = async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get('/api/categories');
-            setCategories(response.data.categories);
-            setError('');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to load categories');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchFavorites = async (categoryName) => {
-        try {
-            const response = await axios.get(`/api/categories/${encodeURIComponent(categoryName)}/favorites`);
-            setFavorites(response.data.favorites);
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to load favorites');
-        }
-    };
 
     const handleAddCategory = async (name) => {
         const response = await axios.post('/api/categories', { name });

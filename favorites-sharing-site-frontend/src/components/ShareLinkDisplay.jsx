@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import useAsync from '../hooks/useAsync';
 
 function ShareLinkDisplay({ token, onRegenerateToken }) {
     const [copied, setCopied] = useState(false);
-    const [loading, setLoading] = useState(false);
 
     const shareUrl = `${window.location.origin}/public/${token}`;
 
@@ -16,20 +16,17 @@ function ShareLinkDisplay({ token, onRegenerateToken }) {
         }
     };
 
-    const handleRegenerate = async () => {
+    const handleRegenerate = useAsync(async () => {
         if (!window.confirm('Regenerate share link? The old link will stop working.')) {
             return;
         }
 
-        setLoading(true);
         try {
             await onRegenerateToken();
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to regenerate token');
-        } finally {
-            setLoading(false);
         }
-    };
+    });
 
     return (
         <div className="card border-0 shadow-sm mb-3">
@@ -56,11 +53,11 @@ function ShareLinkDisplay({ token, onRegenerateToken }) {
                 </div>
                 <button
                     className="btn btn-outline-secondary btn-sm"
-                    onClick={handleRegenerate}
-                    disabled={loading}
+                    onClick={handleRegenerate.run}
+                    disabled={handleRegenerate.loading}
                 >
                     <i className="bi bi-arrow-clockwise me-1"></i>
-                    {loading ? 'Regenerating...' : 'Regenerate Link'}
+                    {handleRegenerate.loading ? 'Regenerating...' : 'Regenerate Link'}
                 </button>
             </div>
         </div>
