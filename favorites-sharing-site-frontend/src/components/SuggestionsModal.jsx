@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import useSuggestions from '../hooks/useSuggestions';
 
-function SuggestionsModal({ show, onClose, suggestions, categoryName, loading, error, onAddSuggestion }) {
+function SuggestionsModal({ show, onClose, categoryName, loading, error, onAddSuggestion }) {
+    const [suggestions] = useSuggestions();
     const [addedSuggestions, setAddedSuggestions] = useState(new Set());
     const [addingTitle, setAddingTitle] = useState(null);
 

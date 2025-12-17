@@ -5,6 +5,7 @@ import FavoritesList from '../components/FavoritesList';
 import ShareLinkDisplay from '../components/ShareLinkDisplay';
 import SuggestionsModal from '../components/SuggestionsModal';
 import useAsync from '../hooks/useAsync';
+import useSuggestions from '../hooks/useSuggestions';
 
 function FavoritesPage({ user, onSignOut }) {
     const [categories, setCategories] = useState([]);
@@ -12,9 +13,7 @@ function FavoritesPage({ user, onSignOut }) {
     const [favorites, setFavorites] = useState([]);
     const [publicShareToken, setPublicShareToken] = useState(user.publicShareToken);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
-    const [suggestions, setSuggestions] = useState([]);
-    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-    const [suggestionsError, setSuggestionsError] = useState('');
+    const [_suggestions, setSuggestions] = useSuggestions();
 
     const fetchCategories = useAsync(async () => {
         try {
@@ -124,27 +123,19 @@ function FavoritesPage({ user, onSignOut }) {
         setPublicShareToken(newToken);
     };
 
-    const handleGetSuggestions = async () => {
+    const handleGetSuggestions = useAsync(async () => {
         if (!selectedCategory) return;
 
         setShowSuggestionsModal(true);
-        setSuggestionsLoading(true);
-        setSuggestionsError('');
         setSuggestions([]);
 
         try {
-            const response = await axios.post(
-                `/api/categories/${encodeURIComponent(selectedCategory.name)}/suggestions`
-            );
+            const response = await axios.post(`/api/categories/${encodeURIComponent(selectedCategory.name)}/suggestions`);
             setSuggestions(response.data.suggestions);
         } catch (err) {
-            setSuggestionsError(
-                err.response?.data?.error || 'Failed to generate suggestions'
-            );
-        } finally {
-            setSuggestionsLoading(false);
+            throw err.response?.data?.error || 'Failed to generate suggestions';
         }
-    };
+    });
 
     const handleAddSuggestion = async (title) => {
         try {
@@ -225,7 +216,7 @@ function FavoritesPage({ user, onSignOut }) {
                             onSelectCategory={setSelectedCategory}
                             onAddCategory={handleAddCategory}
                             onDeleteCategory={handleDeleteCategory}
-                            onGetSuggestions={handleGetSuggestions}
+                            onGetSuggestions={handleGetSuggestions.run}
                         />
                     </div>
 
@@ -244,10 +235,9 @@ function FavoritesPage({ user, onSignOut }) {
             <SuggestionsModal
                 show={showSuggestionsModal}
                 onClose={() => setShowSuggestionsModal(false)}
-                suggestions={suggestions}
                 categoryName={selectedCategory?.name}
-                loading={suggestionsLoading}
-                error={suggestionsError}
+                loading={handleGetSuggestions.isRunning}
+                error={handleGetSuggestions.error}
                 onAddSuggestion={handleAddSuggestion}
             />
         </div>
