@@ -6,12 +6,12 @@ const useLoader = (initialData, loadData) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const reload = async () => {
+    const reload = async (...args) => {
         setError(null);
         setLoading(true);
 
         try {
-            const newData = await loadData();
+            const newData = await loadData(...args);
             setData(newData);
         } catch (e) {
             setError(e);
@@ -20,7 +20,7 @@ const useLoader = (initialData, loadData) => {
         setLoading(false);
     };
 
-    return { data, loading, error, reload };
+    return { data, setData, loading, error, reload };
 };
 
 export default useLoader;

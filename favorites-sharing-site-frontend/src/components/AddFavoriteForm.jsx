@@ -1,37 +1,30 @@
-import { useState } from 'react';
+import useLoader from '../hooks/useLoader';
 
 function AddFavoriteForm({ onAdd }) {
-    const [title, setTitle] = useState('');
-    const [isPrivate, setIsPrivate] = useState(false);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const {
+        data: favorite,
+        setData: setFavorite,
+        loading,
+        error,
+        reload: handleSubmit,
+    } = useLoader({ title: '', isPrivate: false }, async (event) => {
+        event.preventDefault();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (!title.trim()) {
-            setError('Title is required');
-            return;
+        if (!favorite.title.trim()) {
+            throw 'Title is required';
         }
 
-        if (title.trim().length > 200) {
-            setError('Title must be 200 characters or less');
-            return;
+        if (favorite.title.trim().length > 200) {
+            throw 'Title must be 200 characters or less';
         }
-
-        setLoading(true);
 
         try {
-            await onAdd(title.trim(), isPrivate);
-            setTitle('');
-            setIsPrivate(false);
+            await onAdd(favorite.title.trim(), favorite.isPrivate);
+            return { title: '', isPrivate: false };
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to add favorite');
-        } finally {
-            setLoading(false);
+            throw err.response?.data?.error || 'Failed to add favorite';
         }
-    };
+    });
 
     return (
         <div className="card border-0 shadow-sm mb-3">
@@ -42,8 +35,8 @@ function AddFavoriteForm({ onAdd }) {
                             type="text"
                             className="form-control"
                             placeholder="Add a new favorite..."
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            value={favorite.title}
+                            onChange={(e) => setFavorite({ ...favorite, title: e.target.value })}
                             maxLength={200}
                             disabled={loading}
                         />
@@ -55,8 +48,8 @@ function AddFavoriteForm({ onAdd }) {
                                 className="form-check-input"
                                 type="checkbox"
                                 id="privateCheckbox"
-                                checked={isPrivate}
-                                onChange={(e) => setIsPrivate(e.target.checked)}
+                                checked={favorite.isPrivate}
+                                onChange={(e) => setFavorite({ ...favorite, isPrivate: e.target.checked })}
                                 disabled={loading}
                             />
                             <label className="form-check-label text-muted small" htmlFor="privateCheckbox">

@@ -1,31 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import axios from '../api/axios';
+import useLoader from '../hooks/useLoader';
 
 function PublicSharePage({ token }) {
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        fetchPublicData();
-    }, [token]);
-
-    const fetchPublicData = async () => {
+    const { data: categories, loading, error, reload } = useLoader([], async () => {
         try {
-            setLoading(true);
             const response = await axios.get(`/api/public/${token}`);
-            setCategories(response.data.categories);
-            setError('');
+            return response.data.categories;
         } catch (err) {
             if (err.response?.status === 404) {
-                setError('This shared link is invalid or has been changed.');
+                throw 'This shared link is invalid or has been changed.';
             } else {
-                setError('Failed to load shared favorites.');
+                throw 'Failed to load shared favorites.';
             }
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    useEffect(() => {
+        reload();
+    }, [token]);
 
     const navbar = (
         <nav className="navbar navbar-expand-lg shadow-sm"

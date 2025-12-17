@@ -1,42 +1,31 @@
-import { useState } from 'react';
+import useLoader from '../hooks/useLoader';
 
 function AddCategoryForm({ onAdd, onCancel }) {
-    const [name, setName] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
+    const { data: name, setData: setName, loading, error, reload } = useLoader('', async (event) => {
+        event.preventDefault();
 
         if (!name.trim()) {
-            setError('Category name is required');
-            return;
+            throw 'Category name is required';
         }
 
         if (name.trim().length > 50) {
-            setError('Category name must be 50 characters or less');
-            return;
+            throw 'Category name must be 50 characters or less';
         }
-
-        setLoading(true);
 
         try {
             await onAdd(name.trim());
-            setName('');
             onCancel();
+            return '';
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to create category');
-        } finally {
-            setLoading(false);
+            throw err.response?.data?.error || 'Failed to create category';
         }
-    };
+    });
 
     return (
         <div className="card border-0 shadow-sm mb-3">
             <div className="card-body">
                 <h6 className="card-title mb-3">New Category</h6>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={reload}>
                     <div className="mb-3">
                         <input
                             type="text"
