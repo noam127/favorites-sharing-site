@@ -7,6 +7,7 @@ import { connectToMongoDB, getDbCollections, mongoClient } from './mongodb-conne
 import { createAPIAuthRouter } from './api-routers/auth.js';
 import { createAPICategoriesRouter } from './api-routers/categories.js';
 import { createAPIFavoritesRouter } from './api-routers/favorites.js';
+import { createAPISuggestionsRouter } from './api-routers/suggestions.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -53,6 +54,7 @@ initializeMongoDBCollections().then(() => {
     app.use('/api/auth', createAPIAuthRouter(usersCollection));
     app.use('/api/categories', createAPICategoriesRouter(categoriesCollection, favoritesCollection));
     app.use('/api', createAPIFavoritesRouter(categoriesCollection, favoritesCollection));
+    app.use('/api', createAPISuggestionsRouter(categoriesCollection, favoritesCollection));
 });
 
 // GET /api/public/:token - Public view (no auth required)
