@@ -1,9 +1,13 @@
 import { atom, useAtom } from 'jotai';
 import axios from '../api/axios';
+import useCategories from './useCategories';
+import useSelectedCategory from './useSelectedCategory';
 
 const favoritesAtom = atom([]);
 
 const useFavorites = () => {
+    const categories = useCategories();
+    const [selectedCategory] = useSelectedCategory();
     const [favorites, setFavorites] = useAtom(favoritesAtom);
 
     return {
