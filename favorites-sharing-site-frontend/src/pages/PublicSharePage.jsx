@@ -106,27 +106,25 @@ function PublicSharePage({ token }) {
                         ) : (
                             <div>
                                 {categories.map((category, categoryIndex) => (
-                                    category.favorites.length > 0 && (
-                                        <div key={categoryIndex} className="card border-0 shadow-sm mb-3">
-                                            <div className="card-body p-4">
-                                                <h5 className="card-title mb-3">
-                                                    <i className="bi bi-folder2-open me-2 text-primary"></i>
-                                                    {category.name}
-                                                    <span className="badge bg-primary ms-2">
-                                                        {category.favorites.length}
-                                                    </span>
-                                                </h5>
-                                                <div>
-                                                    {category.favorites.map((favorite, favIndex) => (
-                                                        <div key={favIndex} className="d-flex align-items-center py-2 border-bottom">
-                                                            <i className="bi bi-star-fill text-warning me-3"></i>
-                                                            <span>{favorite.title}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                    <div key={categoryIndex} className="card border-0 shadow-sm mb-3">
+                                        <div className="card-body p-4">
+                                            <h5 className="card-title mb-3">
+                                                <i className="bi bi-folder2-open me-2 text-primary"></i>
+                                                {category.name}
+                                                <span className="badge bg-primary ms-2">
+                                                    {category.favorites.length}
+                                                </span>
+                                            </h5>
+                                            <div>
+                                                {category.favorites.map((favorite, favIndex) => (
+                                                    <div key={favIndex} className="d-flex align-items-center py-2 border-bottom">
+                                                        <i className="bi bi-star-fill text-warning me-3"></i>
+                                                        <span>{favorite.title}</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
-                                    )
+                                    </div>
                                 ))}
                             </div>
                         )}
